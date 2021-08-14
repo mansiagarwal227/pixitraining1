@@ -1,31 +1,52 @@
 import {
-  Texture, Resource, ILoaderResource,
-} from 'pixi.js';
-
-let resources: {[key:string]: ILoaderResource };
-
-export function getAllTexture(): {[key:string]: Texture<Resource> } {
-  const keys = Object.keys(resources);
-  const textures: {[key:string]: Texture<Resource> } = {} as {[key:string]: Texture<Resource> };
-  keys.forEach((key) => {
-    textures[key] = resources[key].texture as Texture<Resource>;
-  });
-
-  return textures;
-}
-
-export function setResources(value: {[key:string]: ILoaderResource }) {
-  resources = value;
-  getAllTexture();
-}
-
-export function getResource(id: string): ILoaderResource {
-  return resources[id];
-}
-
-export function getTexture(id:string): Texture<Resource>|null {
-  if (id in resources) {
-    return resources[id].texture as Texture<Resource>;
+    Texture, Resource, ILoaderResource,
+  } from 'pixi.js';
+  import { ResourceType } from './PreLoader';
+  
+  type tTextures = {[key:string]: Texture<Resource> };
+  
+  let resources: {[key:string]: ILoaderResource };
+  
+  export function getAllTexture(): tTextures {
+    const keys = Object.keys(resources);
+    const textures: tTextures = {} as tTextures;
+    keys.forEach((key) => {
+      if (resources[key].texture) {
+        textures[key] = resources[key].texture as Texture<Resource>;
+      } else if (resources[key].textures) {
+        const atlasKeys = Object.keys(resources[key].data.frames);
+        atlasKeys.forEach((aKey:string) => {
+          textures[aKey] = (resources[key].textures as tTextures)[aKey] as Texture<Resource>;
+        });
+      }
+    });
+    return textures;
   }
-  return null;
-}
+  
+  export function setResources(value: ResourceType) {
+    resources = value;
+    getAllTexture();
+  }
+  
+  export function getResource(id: string): ILoaderResource {
+    return resources[id];
+  }
+  
+  export function getTexture(id:string): Texture<Resource>|null {
+    const textures = getAllTexture();
+    if (id in textures) {
+      return textures[id];
+    }
+    return null;
+  }
+  
+  export function getTextureFrame(textureId: string, frameId: string): Texture<Resource>|null {
+    if (textureId in resources) {
+      const res = resources[textureId];
+      if (res.textures && frameId in res.textures) {
+        return res.textures[frameId] as Texture;
+      }
+    }
+    return null;
+  }
+  
