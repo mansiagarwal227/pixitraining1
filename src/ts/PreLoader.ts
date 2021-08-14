@@ -1,42 +1,59 @@
 import {
-  Loader,
-} from 'pixi.js';
-import { setResources } from './Textures';
-import { Assets } from './assets';
-
-function addAssets(loader:Loader, assets: {key:string, url:string}[]):void {
-  assets.forEach((asset) => {
-    loader.add(asset);
-  });
-}
-
-let progDiv: HTMLDivElement;
-function showProgress(e: any) {
-  if (progDiv === undefined) {
-    progDiv = document.createElement('div');
-    progDiv.className = 'progress';
-    document.body.appendChild(progDiv);
+    ILoaderResource,
+    Loader,
+  } from 'pixi.js';
+  import { setResources } from './Textures';
+  import { Assets } from './assets';
+  
+  function addAssets(loader:Loader, assets: {key:string, url:string}[]):void {
+    assets.forEach((asset) => {
+      loader.add(asset);
+    });
   }
-  progDiv.style.width = `${e.progress}%`;
-}
-
-function loadComplete(loader:Loader, onCompleteCallback:()=>void): void {
-  setResources(loader.resources);
-  progDiv.style.display = 'none';
-  onCompleteCallback();
-}
-
-export function preLoader(assetList: Assets, callback:() => void) : Loader {
-  const loader = Loader.shared;
-  if (assetList.baseUrl) {
-    loader.baseUrl = assetList.baseUrl;
+  export type ResourceType = {[key:string]: ILoaderResource };
+  
+  let progDiv: HTMLDivElement;
+  function showProgress(e: any) {
+    if (progDiv === undefined) {
+      progDiv = document.querySelector('.progress') as HTMLDivElement;
+    }
+    progDiv.style.width = `${e.progress}%`;
   }
-  addAssets(loader, assetList.images);
-  loader.onProgress.add(showProgress);
-  loader.onComplete.add((l:Loader) => {
-    console.log('res ', l.resources);
-    loadComplete(l, callback);
-  });
-  loader.load();
-  return loader;
-}
+  
+  function loadComplete(
+    loader:Loader,
+    resources: ResourceType,
+    onCompleteCallback:(l:Loader, r: ResourceType)=>void,
+  ): void {
+    setResources(resources);
+    setTimeout(() => {
+      (<HTMLDivElement>document.querySelector('#bar')).style.visibility = 'hidden';
+      (<HTMLDivElement>document.querySelector('#message')).innerHTML = 'Click here to continue';
+      const preloader = (<HTMLDivElement>document.querySelector('#preloader'));
+      preloader.onclick = (e) => {
+        console.log('event ', e);
+        preloader.style.display = 'none';
+        // document.removeChild(preloader);
+        onCompleteCallback(loader, resources);
+      };
+    }, 1000);
+  }
+  
+  export function preLoader(
+    assetList: Assets,
+    callback: (l?:Loader, r?: ResourceType) => void,
+  ): Loader {
+    const loader = Loader.shared;
+    if (assetList.baseUrl) {
+      loader.baseUrl = assetList.baseUrl;
+    }
+    addAssets(loader, assetList.images);
+    loader.onProgress.add(showProgress);
+    loader.onComplete.add((l:Loader, res) => {
+      console.warn('loader', l, 'res ', res);
+      loadComplete(l, res as any, callback);
+    });
+    loader.load();
+    return loader;
+  }
+  
